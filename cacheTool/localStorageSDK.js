@@ -85,7 +85,7 @@ window.LocalCacheSDK.prototype = {
         }
     },
     // 文件缓存到本地
-    fileCacheToLocal: function() {
+    fileCacheToLocal: function(callback) {
         var dataStr = '', _self = this;
 
         // 缓存版本号保存到本地
@@ -107,6 +107,12 @@ window.LocalCacheSDK.prototype = {
                         // 保存到本地
                         _self.saveSDK(file.url, JSON.stringify(dataStr));
                     })
+                    if (callback) {
+                        // 解决数据还没完整保存就读取的问题
+                        setTimeout(function() {
+                            callback();
+                        },0)
+                    }
                 })(i)
             }
         } else if (this.isObject(this.resourceList)) {
@@ -116,6 +122,11 @@ window.LocalCacheSDK.prototype = {
                 // 保存到本地
                 _self.saveSDK(_self.resourceList.url, JSON.stringify(dataStr));
             })
+            if (callback) {
+                setTimeout(function() {
+                    callback();
+                },0)
+            }
         }
     },
     // 读取本地缓存的方法
@@ -150,14 +161,14 @@ window.LocalCacheSDK.prototype = {
             }
 
             // 判断是否需要更新缓存数据
-            if (this.isNeedUpdate() === false) {
-                // 不需要更新缓存
-                readLocalCache();
-            } else {
+            if (this.isNeedUpdate()) {
                 // 需要更新缓存
-                // console.log('需要更新缓存');
                 // 先获取最新数据保存到本地
-                this.fileCacheToLocal();
+                this.fileCacheToLocal(function() {
+                    readLocalCache();
+                });
+            } else {
+                // 不需要更新缓存
                 readLocalCache();
             }
 
@@ -223,7 +234,13 @@ window.LocalCacheSDK.prototype = {
     },
     // 根据cache版本号判断是否需要更新缓存
     isNeedUpdate: function(){
-        return localStorage.getItem('cacheVersion') !== this.cacheVersion.toString();
+        var localCacheVersion = localStorage.getItem('cacheVersion');
+        if (!localCacheVersion) {
+            return true;
+        } else {
+            var bool = localCacheVersion !== this.cacheVersion.toString();
+            return bool;
+        }
     },
     // 判断是否是IE浏览器
     isIEBrowser: (function() {
@@ -275,4 +292,8 @@ window.LocalCacheSDK.prototype = {
     }
 }
 
-var localCache = new LocalCacheSDK();
+if (!window.localCache) {
+    window.localCache = new LocalCacheSDK();
+} else {
+    window.localCache = window.localCache;
+}
